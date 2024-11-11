@@ -1,0 +1,111 @@
+import * as request from 'supertest';
+import { bootstrapApp, BootstrapSettings } from '../utils/bootstrap';
+import { OperatorRepository } from '../../../src/api/repositories/OperatorRepository';
+import { Operator } from '../../../src/api/models/Operator';
+import { Ticket } from '../../../src/api/models/Ticket';
+import { TicketHistory } from '../../../src/api/models/TicketHistory';
+
+
+describe('/api TicketHistory  ', () => {
+
+    // -------------------------------------------------------------------------
+    // Setup up
+    // -------------------------------------------------------------------------
+    let bruce: Operator | undefined;
+    let repos: OperatorRepository;
+    let settings: BootstrapSettings;
+    let newTicket = new Ticket();
+    let newHistory = new TicketHistory();
+    let dataTicket: string;
+    let dataHistory: string;
+    beforeAll(async () => settings = await bootstrapApp());
+    beforeAll(async () => repos = await settings.connection.getCustomRepository(OperatorRepository));
+    beforeAll(async () => bruce = await repos.findOneById(1));
+    beforeAll(() => {
+        newTicket.id_service = 1;
+        newTicket.id_operator = 1;
+        newTicket.id_status = 1;
+        newTicket.id_category = 1;
+        dataTicket = 'id_service=1&id_operator=1&id_status=1&id_category=1';
+        dataHistory = 'action=questo è un messaggio di test&date_time=2018-02-05 13:07:04';
+    });
+
+    // -------------------------------------------------------------------------
+    //     Test cases
+    // -------------------------------------------------------------------------
+    test('POST: /login with username and password should return an Bruce Operator object', async (done) => {
+
+        if (!bruce) { bruce = new Operator(); }
+        const response = await request(settings.app)
+            .post(`/api/login?username=${bruce.login}&password=${bruce.pwd}`)
+            .expect('Content-Type', /json/)
+            .expect(200);
+
+        expect(response.body.id).toBe(bruce.id);
+        expect(response.body.firstname).toBe(bruce.firstname);
+        expect(response.body.lastname).toBe(bruce.lastname);
+        done();
+    });
+
+    test('POST: /ticket CREATE new Ticket for User Bruce', async (done) => {
+
+        let bruceOut = await repos.findOneById(1);
+        if (!bruceOut) { bruceOut = new Operator(); }
+        const response = await request(settings.app)
+            .post(`/api/ticket?` + dataTicket)
+            .set('Authorization', `Bearer ${bruceOut.token.token_session}`)
+            .expect('Content-Type', /json/)
+            .expect(200);
+
+        expect(response.body.id).toBeDefined();
+        newTicket = response.body;
+        done();
+    });
+
+    test('POST: /tickethistory CREATE new message for Ticket for User Bruce', async (done) => {
+
+        let bruceOut = await repos.findOneById(1);
+        if (!bruceOut) { bruceOut = new Operator(); }
+        const response = await request(settings.app)
+            .post(`/api/tickethistory/${newTicket.id}?${dataHistory}`)
+            .set('Authorization', `Bearer ${bruceOut.token.token_session}`)
+            .expect('Content-Type', /json/)
+            .expect(200);
+
+        expect(response.body.action).toBeDefined();
+        newHistory = response.body;
+        done();
+    });
+
+    test('PUT: /tickethistory UPDATE message for Ticket for User Bruce', async (done) => {
+
+        dataHistory = `action=This messages is Modified`;
+        let bruceOut = await repos.findOneById(1);
+        if (!bruceOut) { bruceOut = new Operator(); }
+        const response = await request(settings.app)
+            .put(`/api/tickethistory/${newHistory.id}?${dataHistory}`)
+            .set('Authorization', `Bearer ${bruceOut.token.token_session}`)
+            .expect('Content-Type', /json/)
+            .expect(200);
+
+        expect(response.body.action).toBeDefined();
+        done();
+    });
+
+    test('GET: /logout with valid token should return no error', async (done) => {
+
+        let bruceOut = await repos.findOneById(1);
+        if (!bruceOut) { bruceOut = new Operator(); }
+        const response = await request(settings.app)
+            .get(`/api/logout`)
+            .set('Authorization', `Bearer ${bruceOut.token.token_session}`)
+            .expect('Content-Type', /json/)
+            .expect(200);
+
+        expect(response.body).toBe(true);
+        done();
+    });
+
+
+});
+

@@ -1,0 +1,6 @@
+import { Repository, EntityRepository } from 'typeorm';
+import { Profiles } from '../models/Profiles';
+
+@EntityRepository(Profiles)
+export class ProfileRepository extends Repository<Profiles> {
+}
